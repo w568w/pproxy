@@ -21,7 +21,7 @@ wget https://raw.githubusercontent.com/w568w/pproxy/main/proxy.sh
 如果无法访问 GitHub，可以使用镜像源下载，例如：
 
 ```bash
-wget https://github.akams.cn/https://raw.githubusercontent.com/w568w/pproxy/main/proxy.sh
+wget https://gh.llkk.cc/https://raw.githubusercontent.com/w568w/pproxy/main/proxy.sh
 ```
 
 下载后执行 `bash proxy.sh https://example.com/subscription.yaml` 即可启动代理并下载订阅文件。

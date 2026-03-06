@@ -14,8 +14,8 @@ readonly UNZIP_DEP_ALTERNATIVES=(unzip 7z bsdtar python3 jar)
 UNZIP_DEP="UNSET"
 readonly GITHUB_PROXIES=(
     "" # Direct connection
-    https://github.akams.cn/
     https://gh-proxy.net/
+    https://gh.llkk.cc/
     https://tvv.tw/
     https://github.xxlab.tech/
     https://gh.felicity.ac.cn/
