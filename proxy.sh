@@ -9,7 +9,7 @@ fi
 
 set -u # Exit on unset variables
 
-readonly TOOL_DEPS=(curl gzip chmod setsid grep kill readlink ps cat mkdir)
+readonly TOOL_DEPS=(curl gzip chmod setsid grep kill ps cat mkdir)
 readonly UNZIP_DEP_ALTERNATIVES=(unzip 7z bsdtar python3 jar)
 UNZIP_DEP="UNSET"
 readonly GITHUB_PROXIES=(
@@ -136,14 +136,14 @@ smart_unzip() {
         ;;
     bsdtar)
         # bsdtar requires the dest to be created before extraction
-        mkdir --parents "$dest"
-        command bsdtar --extract --file "$file" --directory "$dest"
+        mkdir -p "$dest" # -p: --parents
+        command bsdtar -xf "$file" -C "$dest" # -x: --extract, -f: --file, -C: --directory
         ;;
     python3)
         command python3 -m zipfile --extract "$file" "$dest"
         ;;
     jar)
-        command jar --extract --file="$file" -C "$dest"
+        command jar xf "$file" -C "$dest" # x: --extract, f: --file
         ;;
     UNSET)
         log "ERROR" "No unzip tool found. Please install one of the following: ${UNZIP_DEP_ALTERNATIVES[*]}."
@@ -173,7 +173,7 @@ github_proxy_select() {
                 fi
             else
                 log "ERROR" "Invalid saved GitHub proxy selection: $selection. Removing it."
-                rm --force "proxy-data/github_proxy_selection"
+                rm -f "proxy-data/github_proxy_selection" # -f: --force
             fi
         fi
     fi
@@ -247,7 +247,7 @@ github_proxy_select() {
         FASTEST_GITHUB_PROXY="${GITHUB_PROXIES[$min_index]}"
         log "SUCCESS" "Selected fastest GitHub proxy: ${FASTEST_GITHUB_PROXY:-Direct connection}"
         if [[ $persistent -eq 1 ]]; then
-            mkdir --parents "proxy-data/"
+            mkdir -p "proxy-data/"
             echo "$min_index" > "proxy-data/github_proxy_selection"
             log "INFO" "Note: This selection will be remembered for future sessions. If you want to reset, delete the ${COLOR_UNDERLINE}proxy-data/github_proxy_selection${COLOR_NORMAL} file."
         fi
@@ -256,7 +256,7 @@ github_proxy_select() {
             FASTEST_GITHUB_PROXY="${GITHUB_PROXIES[$user_choice]}"
             log "SUCCESS" "Selected GitHub proxy: ${FASTEST_GITHUB_PROXY:-Direct connection}"
             if [[ $persistent -eq 1 ]]; then
-                mkdir --parents "proxy-data/"
+                mkdir -p "proxy-data/"
                 echo "$user_choice" > "proxy-data/github_proxy_selection"
                 log "INFO" "This selection will be remembered for future sessions"
             fi
@@ -277,7 +277,7 @@ download_with_cleanup() {
     local url="$1"
     local output_file="$2"
 
-    trap 'rm --force "$output_file"; echo; log "ERROR" "Download interrupted. Cleaned up partially downloaded file: $output_file"; exit 1' INT
+    trap 'rm -f "$output_file"; echo; log "ERROR" "Download interrupted. Cleaned up partially downloaded file: $output_file"; exit 1' INT
     curl --fail --location "$url" --output "$output_file"
     local _status="$?"
     # Remove the trap
@@ -368,7 +368,7 @@ download_mihomo() {
     # 3. Unzip
     log "INFO" "Unzipping..."
     log_sublevel_start
-    if ! gzip --decompress --force "proxy-data/mihomo.gz"; then
+    if ! gzip -df "proxy-data/mihomo.gz"; then # -d: --decompress, -f: --force
         log "ERROR" "Failed to unzip Mihomo"
         rm "proxy-data/mihomo" # Clean up on failure
         exit 1
@@ -422,15 +422,15 @@ download_metacubexd() {
     # 2. Unzip
     log "INFO" "Unzipping..."
     log_sublevel_start
-    rm --recursive --force "proxy-data/metacubexd/"
+    rm -rf "proxy-data/metacubexd/" # -r: --recursive, -f: --force
     if ! smart_unzip "proxy-data/metacubexd.zip" "proxy-data/metacubexd/"; then
         log "ERROR" "Failed to unzip metacubexd"
-        rm --recursive --force "proxy-data/metacubexd/" # Clean up on failure
+        rm -rf "proxy-data/metacubexd/" # Clean up on failure
         exit 1
     fi
     if [[ ! -d "proxy-data/metacubexd/" ]]; then
         log "ERROR" "Failed to unzip metacubexd"
-        rm --recursive --force "proxy-data/metacubexd/" # Clean up on failure
+        rm -rf "proxy-data/metacubexd/" # Clean up on failure
         exit 1
     fi
     log "SUCCESS" "Unzipped to proxy-data/metacubexd"
@@ -667,7 +667,7 @@ download_subscription() {
 is_config_valid() {
     local config_file="$1"
     if [[ -f "$config_file" ]] && [[ -s "$config_file" ]]; then
-        if grep --quiet --extended-regexp "^(proxies|proxy-groups|rules):" "$config_file" 2>/dev/null; then
+        if grep -qE "^(proxies|proxy-groups|rules):" "$config_file" 2>/dev/null; then # -q: --quiet, -E: --extended-regexp
             return 0
         fi
     fi
@@ -788,7 +788,7 @@ main() {
                 exit 0
             fi
             # Create the marker file to skip this warning in the future
-            mkdir --parents "proxy-data"
+            mkdir -p "proxy-data"
             echo > "proxy-data/do_as_root"
             log "DEBUG" "Created proxy-data/do_as_root. This warning will not be shown again."
         fi
@@ -821,7 +821,7 @@ main() {
     esac
 
     # no arguments or URL provided, start Mihomo
-    mkdir --parents "proxy-data/"
+    mkdir -p "proxy-data/"
 
     if mihomo_version_output=$(mihomo_exist); then
         log "INFO" "Mihomo already exists, skip downloading. Version: "
@@ -838,7 +838,7 @@ main() {
         download_metacubexd
     fi
 
-    mkdir --parents "proxy-data/config"
+    mkdir -p "proxy-data/config"
     download_geodata_if_necessary
 
     kill_by_tag mihomo
@@ -851,7 +851,7 @@ main() {
         log "ERROR" "Failed to find an unused port"
         exit 1
     fi
-    daemon_run mihomo ./proxy-data/mihomo.log ./proxy-data/mihomo -d "proxy-data/config" -ext-ctl "0.0.0.0:$ext_port" -ext-ui "$(readlink --canonicalize-existing proxy-data/metacubexd)"
+    daemon_run mihomo ./proxy-data/mihomo.log ./proxy-data/mihomo -d "proxy-data/config" -ext-ctl "0.0.0.0:$ext_port" -ext-ui "$(resolve_existing_dir "proxy-data/metacubexd")"
 
     log "SUCCESS" "${COLOR_BOLD}Mihomo started in the background!${COLOR_NORMAL}"
     log "INFO" "Note: You can access the web UI at ${COLOR_UNDERLINE}http://<server-ip>:$ext_port/ui${COLOR_NORMAL}. Use ${COLOR_UNDERLINE}http://<server-ip>:$ext_port/${COLOR_NORMAL} as the control server address in the WebUI."
@@ -1016,6 +1016,19 @@ compare_floats() {
     fi
 
     echo "$result"
+}
+
+resolve_existing_dir() {
+    local dir="$1"
+    if [[ ! -d "$dir" ]]; then
+        log "ERROR" "Directory does not exist: $dir"
+        return 1
+    fi
+
+    (
+        cd "$dir" >/dev/null 2>&1 || exit 1
+        pwd -P # -P: physical path (resolve symlinks)
+    )
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
