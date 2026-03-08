@@ -496,7 +496,12 @@ mihomo_status() {
     log "INFO" "Mihomo status:"
     log_sublevel_start
 
-    find_by_tag mihomo
+    if ! find_by_tag mihomo; then
+        log "WARN" "Cannot determine Mihomo status because process listing is not compatible on this system"
+        log_sublevel_end
+        return 1
+    fi
+
     if [[ "${#TAGGED_PIDS[@]}" -gt 0 ]]; then
         log "INFO" "Mihomo is running with pids: ${TAGGED_PIDS[*]}"
     else
@@ -538,14 +543,20 @@ ps_list_processes() {
         ps -e -o pid= -o args=
         return 0
     fi
-    # Last-resort fallback for minimal ps implementations.
-    ps
+    log "ERROR" "No compatible ps output format found on this system."
+    return 1
 }
 
 find_by_tag() {
     local tag=$1
     local process_name_with_tag="proxy-sh-${tag}"
+    local ps_output
     TAGGED_PIDS=()
+
+    if ! ps_output="$(ps_list_processes)"; then
+        return 1
+    fi
+
     while IFS= read -r line; do
         local pid
         # read the first non-whitespace word
@@ -559,12 +570,15 @@ find_by_tag() {
         if [[ "$line" =~ (^|[[:space:]])$process_name_with_tag([[:space:]]|$) ]]; then
             TAGGED_PIDS+=("$pid")
         fi
-    done < <(ps_list_processes)
+    done <<< "$ps_output"
 }
 
 kill_by_tag() {
     local tag=$1
-    find_by_tag "$tag"
+    if ! find_by_tag "$tag"; then
+        log "ERROR" "Cannot find processes by tag because process listing is not compatible on this system"
+        return 1
+    fi
 
     if [[ "${#TAGGED_PIDS[@]}" -gt 0 ]]; then
         log "INFO" "Killing pids: ${TAGGED_PIDS[*]}"
