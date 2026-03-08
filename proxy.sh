@@ -522,6 +522,26 @@ daemon_run() {
 }
 
 TAGGED_PIDS=()
+ps_list_processes() {
+    # BSD/macOS and GNU procps usually support this form.
+    if ps axww -o pid= -o command= >/dev/null 2>&1; then
+        ps axww -o pid= -o command=
+        return 0
+    fi
+    # Some toybox/busybox variants expose args but not command.
+    if ps axww -o pid= -o args= >/dev/null 2>&1; then
+        ps axww -o pid= -o args=
+        return 0
+    fi
+    # POSIX-style fallback often available across non-GNU systems.
+    if ps -e -o pid= -o args= >/dev/null 2>&1; then
+        ps -e -o pid= -o args=
+        return 0
+    fi
+    # Last-resort fallback for minimal ps implementations.
+    ps
+}
+
 find_by_tag() {
     local tag=$1
     local process_name_with_tag="proxy-sh-${tag}"
@@ -536,10 +556,10 @@ find_by_tag() {
             continue
         fi
         
-        if [[ "$line" == *"$process_name_with_tag"* ]]; then
+        if [[ "$line" =~ (^|[[:space:]])$process_name_with_tag([[:space:]]|$) ]]; then
             TAGGED_PIDS+=("$pid")
         fi
-    done < <(ps ax -o pid,command)
+    done < <(ps_list_processes)
 }
 
 kill_by_tag() {
