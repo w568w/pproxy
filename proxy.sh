@@ -517,7 +517,7 @@ daemon_run() {
         umask 0
         # shellcheck disable=SC2016
         # Safety: should use single quotes here because we intend not to expand variables.
-        setsid "$SHELL" -c 'exec -a "$1" "${@:2}"' _ "$process_name_with_tag" "$@" </dev/null >>"$output_file" 2>&1 &
+        setsid "$BASH" -c 'exec -a "$1" "${@:2}"' _ "$process_name_with_tag" "$@" </dev/null >>"$output_file" 2>&1 &
     ) &
 }
 
