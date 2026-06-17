@@ -14,11 +14,10 @@ readonly UNZIP_DEP_ALTERNATIVES=(unzip 7z bsdtar python3 jar)
 UNZIP_DEP="UNSET"
 readonly GITHUB_PROXIES=(
     "" # Direct connection
-    https://gh-proxy.net/
+    https://gh-proxy.com/
     https://gh.llkk.cc/
     https://tvv.tw/
-    https://github.xxlab.tech/
-    https://gh.felicity.ac.cn/
+    https://ghproxy.net/
 )
 readonly GITHUB_SPEEDTEST_URL="https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt"
 
