@@ -934,6 +934,24 @@ try_tunnel_service() {
         return 1
     }
 
+    # Keep Ctrl+C focused on the foreground ssh instead of exiting this script.
+    ssh_with_sigtrap() {
+        local previous_trap exit_code
+        previous_trap=$(trap -p INT)
+
+        trap ':' INT
+        ssh "$@"
+        exit_code=$?
+
+        if [[ -n "$previous_trap" ]]; then
+            eval "$previous_trap"
+        else
+            trap - INT
+        fi
+
+        return "$exit_code"
+    }
+
     local tunnel_port=$1
 
     log "INFO" "Tunneling the WebUI through a free service..."
@@ -956,7 +974,7 @@ try_tunnel_service() {
     )
     # - tunnel through pinggy.io
     log "INFO" "Try tunneling through pinggy.io..."
-    ssh -p 443 "${SSH_DEFAULT_PARAMS[@]}" -t -R0:localhost:"$tunnel_port" a.pinggy.io x:passpreflight
+    ssh_with_sigtrap -p 443 "${SSH_DEFAULT_PARAMS[@]}" -t -R0:localhost:"$tunnel_port" a.pinggy.io x:passpreflight
     if ! tunnel_ask_next_or_exit "pinggy.io" $?; then
         log_sublevel_end
         return
@@ -964,7 +982,7 @@ try_tunnel_service() {
 
     # - tunnel through localhost.run
     log "INFO" "Try tunneling through localhost.run..."
-    ssh "${SSH_DEFAULT_PARAMS[@]}" -R80:localhost:"$tunnel_port" nokey@localhost.run
+    ssh_with_sigtrap "${SSH_DEFAULT_PARAMS[@]}" -R80:localhost:"$tunnel_port" nokey@localhost.run
     if ! tunnel_ask_next_or_exit "localhost.run" $?; then
         log_sublevel_end
         return
@@ -972,7 +990,7 @@ try_tunnel_service() {
 
     # - tunnel through tunnl.gg
     log "INFO" "Try tunneling through tunnl.gg..."
-    ssh "${SSH_DEFAULT_PARAMS[@]}" -R80:localhost:"$tunnel_port" proxy.tunnl.gg
+    ssh_with_sigtrap "${SSH_DEFAULT_PARAMS[@]}" -R80:localhost:"$tunnel_port" proxy.tunnl.gg
     if ! tunnel_ask_next_or_exit "tunnl.gg" $?; then
         log_sublevel_end
         return
@@ -980,7 +998,7 @@ try_tunnel_service() {
 
     # - tunnel through serveo.net
     log "INFO" "Try tunneling through serveo.net..."
-    ssh "${SSH_DEFAULT_PARAMS[@]}" -R80:localhost:"$tunnel_port" serveo.net
+    ssh_with_sigtrap "${SSH_DEFAULT_PARAMS[@]}" -R80:localhost:"$tunnel_port" serveo.net
     if ! tunnel_ask_next_or_exit "serveo.net" $?; then
         log_sublevel_end
         return
