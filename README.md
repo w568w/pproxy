@@ -52,6 +52,12 @@ $ bash proxy.sh status
 # 停止代理
 $ bash proxy.sh stop
 
+# 想要在同一台机器上同时运行多个代理？其他人已经在跑 PProxy，你不希望 kill 他们的实例？
+# 启动、检查、停止一个「命名实例」（数据会放在 ./proxy-data-work）
+$ bash proxy.sh -n work https://example.com/subscription.yaml
+$ bash proxy.sh -n work status
+$ bash proxy.sh -n work stop
+
 # 对已运行在 9000 端口的 WebUI 进行端口映射，以便访问和管理
 $ bash proxy.sh tunnel 9000
 

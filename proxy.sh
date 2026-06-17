@@ -22,6 +22,9 @@ readonly GITHUB_PROXIES=(
 )
 readonly GITHUB_SPEEDTEST_URL="https://raw.githubusercontent.com/microsoft/vscode/main/LICENSE.txt"
 
+DATA_DIR="proxy-data"
+MIHOMO_TAG="mihomo"
+
 COLOR_GREEN=""
 COLOR_RED=""
 COLOR_YELLOW=""
@@ -160,9 +163,9 @@ github_proxy_select() {
     fi
 
     # Check if persistent selection exists
-    if [[ -f "proxy-data/github_proxy_selection" ]]; then
+    if [[ -f "$DATA_DIR/github_proxy_selection" ]]; then
         local selection
-        selection=$(<"proxy-data/github_proxy_selection")
+        selection=$(<"$DATA_DIR/github_proxy_selection")
         if [[ -n "$selection" ]]; then
             # Use the persistent selection
             if [[ "$selection" =~ ^[0-9]+$ ]]; then
@@ -173,7 +176,7 @@ github_proxy_select() {
                 fi
             else
                 log "ERROR" "Invalid saved GitHub proxy selection: $selection. Removing it."
-                rm -f "proxy-data/github_proxy_selection" # -f: --force
+                rm -f "$DATA_DIR/github_proxy_selection" # -f: --force
             fi
         fi
     fi
@@ -247,17 +250,17 @@ github_proxy_select() {
         FASTEST_GITHUB_PROXY="${GITHUB_PROXIES[$min_index]}"
         log "SUCCESS" "Selected fastest GitHub proxy: ${FASTEST_GITHUB_PROXY:-Direct connection}"
         if [[ $persistent -eq 1 ]]; then
-            mkdir -p "proxy-data/"
-            echo "$min_index" > "proxy-data/github_proxy_selection"
-            log "INFO" "Note: This selection will be remembered for future sessions. If you want to reset, delete the ${COLOR_UNDERLINE}proxy-data/github_proxy_selection${COLOR_NORMAL} file."
+            mkdir -p "$DATA_DIR/"
+            echo "$min_index" > "$DATA_DIR/github_proxy_selection"
+            log "INFO" "Note: This selection will be remembered for future sessions. If you want to reset, delete the ${COLOR_UNDERLINE}$DATA_DIR/github_proxy_selection${COLOR_NORMAL} file."
         fi
     elif [[ "$user_choice" =~ ^[0-9]+$ ]]; then
         if [[ $user_choice -ge 0 && $user_choice -lt ${#GITHUB_PROXIES[@]} ]]; then
             FASTEST_GITHUB_PROXY="${GITHUB_PROXIES[$user_choice]}"
             log "SUCCESS" "Selected GitHub proxy: ${FASTEST_GITHUB_PROXY:-Direct connection}"
             if [[ $persistent -eq 1 ]]; then
-                mkdir -p "proxy-data/"
-                echo "$user_choice" > "proxy-data/github_proxy_selection"
+                mkdir -p "$DATA_DIR/"
+                echo "$user_choice" > "$DATA_DIR/github_proxy_selection"
                 log "INFO" "This selection will be remembered for future sessions"
             fi
         else
@@ -358,42 +361,42 @@ download_mihomo() {
     # shellcheck disable=SC2155
     readonly MIHOMO_DOWNLOAD_URL="https://github.com/MetaCubeX/mihomo/releases/download/$mihomo_latest_version/mihomo-$(obtain_mihomo_os)-$(obtain_mihomo_arch)-$mihomo_latest_version.gz"
     log "INFO" "Download from: ${COLOR_UNDERLINE}$MIHOMO_DOWNLOAD_URL${COLOR_NORMAL}"
-    if ! download_with_cleanup "$FASTEST_GITHUB_PROXY$MIHOMO_DOWNLOAD_URL" "proxy-data/mihomo.gz"; then
+    if ! download_with_cleanup "$FASTEST_GITHUB_PROXY$MIHOMO_DOWNLOAD_URL" "$DATA_DIR/mihomo.gz"; then
         log "ERROR" "Failed to download Mihomo"
         exit 1
     fi
-    log "SUCCESS" "Downloaded to proxy-data/mihomo.gz"
+    log "SUCCESS" "Downloaded to $DATA_DIR/mihomo.gz"
     log_sublevel_end
 
     # 3. Unzip
     log "INFO" "Unzipping..."
     log_sublevel_start
-    if ! gzip -df "proxy-data/mihomo.gz"; then # -d: --decompress, -f: --force
+    if ! gzip -df "$DATA_DIR/mihomo.gz"; then # -d: --decompress, -f: --force
         log "ERROR" "Failed to unzip Mihomo"
-        rm "proxy-data/mihomo" # Clean up on failure
+        rm "$DATA_DIR/mihomo" # Clean up on failure
         exit 1
     fi
-    if ! chmod +x "proxy-data/mihomo"; then
+    if ! chmod +x "$DATA_DIR/mihomo"; then
         log "ERROR" "Failed to make mihomo executable"
-        rm "proxy-data/mihomo" # Clean up on failure
+        rm "$DATA_DIR/mihomo" # Clean up on failure
         exit 1
     fi
-    log "SUCCESS" "Unzipped to proxy-data/mihomo"
+    log "SUCCESS" "Unzipped to $DATA_DIR/mihomo"
     log_sublevel_end
 
     log_sublevel_end
 }
 
 mihomo_exist() {
-    if [[ -s "proxy-data/mihomo" ]]; then
+    if [[ -s "$DATA_DIR/mihomo" ]]; then
         # Check if mihomo is executable
-        if [[ ! -x "proxy-data/mihomo" ]]; then
-            if ! chmod +x "proxy-data/mihomo"; then
+        if [[ ! -x "$DATA_DIR/mihomo" ]]; then
+            if ! chmod +x "$DATA_DIR/mihomo"; then
                 log "ERROR" "Mihomo exists but not executable and we failed to make it executable"
                 exit 1
             fi
         fi
-        if ./proxy-data/mihomo -v; then
+        if "$DATA_DIR/mihomo" -v; then
             return 0
         else
             return 1
@@ -412,81 +415,81 @@ download_metacubexd() {
     log "INFO" "Downloading..."
     log_sublevel_start
     log "INFO" "Download from: ${COLOR_UNDERLINE}$METACUBEXD_DOWNLOAD_URL${COLOR_NORMAL}"
-    if ! download_with_cleanup "$FASTEST_GITHUB_PROXY$METACUBEXD_DOWNLOAD_URL" "proxy-data/metacubexd.zip"; then
+    if ! download_with_cleanup "$FASTEST_GITHUB_PROXY$METACUBEXD_DOWNLOAD_URL" "$DATA_DIR/metacubexd.zip"; then
         log "ERROR" "Failed to download metacubexd"
         exit 1
     fi
-    log "SUCCESS" "Downloaded to proxy-data/metacubexd.zip"
+    log "SUCCESS" "Downloaded to $DATA_DIR/metacubexd.zip"
     log_sublevel_end
 
     # 2. Unzip
     log "INFO" "Unzipping..."
     log_sublevel_start
-    rm -rf "proxy-data/metacubexd/" # -r: --recursive, -f: --force
-    if ! smart_unzip "proxy-data/metacubexd.zip" "proxy-data/metacubexd/"; then
+    rm -rf "$DATA_DIR/metacubexd/" # -r: --recursive, -f: --force
+    if ! smart_unzip "$DATA_DIR/metacubexd.zip" "$DATA_DIR/metacubexd/"; then
         log "ERROR" "Failed to unzip metacubexd"
-        rm -rf "proxy-data/metacubexd/" # Clean up on failure
+        rm -rf "$DATA_DIR/metacubexd/" # Clean up on failure
         exit 1
     fi
-    if [[ ! -d "proxy-data/metacubexd/" ]]; then
+    if [[ ! -d "$DATA_DIR/metacubexd/" ]]; then
         log "ERROR" "Failed to unzip metacubexd"
-        rm -rf "proxy-data/metacubexd/" # Clean up on failure
+        rm -rf "$DATA_DIR/metacubexd/" # Clean up on failure
         exit 1
     fi
-    log "SUCCESS" "Unzipped to proxy-data/metacubexd"
+    log "SUCCESS" "Unzipped to $DATA_DIR/metacubexd"
     # strip the first directory layer
     shopt -s nullglob dotglob
-    local unarchived_file_list=("proxy-data/metacubexd/"*)
+    local unarchived_file_list=("$DATA_DIR/metacubexd/"*)
     if [[ ${#unarchived_file_list[@]} -eq 1 ]] && [[ -d "${unarchived_file_list[0]}" ]]; then
         log "INFO" "Stripping the first directory layer..."
-        mv "${unarchived_file_list[0]}"/* "proxy-data/metacubexd/"
+        mv "${unarchived_file_list[0]}"/* "$DATA_DIR/metacubexd/"
         rmdir "${unarchived_file_list[0]}"
     fi
-    rm "proxy-data/metacubexd.zip"
+    rm "$DATA_DIR/metacubexd.zip"
     log_sublevel_end
 
     log_sublevel_end
 }
 
 download_geodata_if_necessary() {
-    if [[ ! -f "proxy-data/config/geosite.dat" ]]; then
+    if [[ ! -f "$DATA_DIR/config/geosite.dat" ]]; then
         github_proxy_select
         log "INFO" "Downloading geosite.dat..."
         log_sublevel_start
         readonly MIHOMO_GEOSITE_DOWNLOAD_URL="https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat"
         log "INFO" "Download from: ${COLOR_UNDERLINE}$MIHOMO_GEOSITE_DOWNLOAD_URL${COLOR_NORMAL}"
-        if ! download_with_cleanup "$FASTEST_GITHUB_PROXY$MIHOMO_GEOSITE_DOWNLOAD_URL" "proxy-data/config/geosite.dat"; then
+        if ! download_with_cleanup "$FASTEST_GITHUB_PROXY$MIHOMO_GEOSITE_DOWNLOAD_URL" "$DATA_DIR/config/geosite.dat"; then
             log "WARN" "Failed to download geosite"
         else
-            log "SUCCESS" "Downloaded to proxy-data/config/geosite.dat"
+            log "SUCCESS" "Downloaded to $DATA_DIR/config/geosite.dat"
         fi
         log_sublevel_end
     fi
 
-    if [[ ! -f "proxy-data/config/geoip.dat" ]]; then
+    if [[ ! -f "$DATA_DIR/config/geoip.dat" ]]; then
         github_proxy_select
         log "INFO" "Downloading geoip.dat..."
         log_sublevel_start
         readonly MIHOMO_GEOIP_DOWNLOAD_URL="https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.dat"
         log "INFO" "Download from: ${COLOR_UNDERLINE}$MIHOMO_GEOIP_DOWNLOAD_URL${COLOR_NORMAL}"
-        if ! download_with_cleanup "$FASTEST_GITHUB_PROXY$MIHOMO_GEOIP_DOWNLOAD_URL" "proxy-data/config/geoip.dat"; then
+        if ! download_with_cleanup "$FASTEST_GITHUB_PROXY$MIHOMO_GEOIP_DOWNLOAD_URL" "$DATA_DIR/config/geoip.dat"; then
             log "WARN" "Failed to download geoip"
         else
-            log "SUCCESS" "Downloaded to proxy-data/config/geoip.dat"
+            log "SUCCESS" "Downloaded to $DATA_DIR/config/geoip.dat"
         fi
         log_sublevel_end
     fi
 
-    if [[ ! -f "proxy-data/config/geoip.metadb" ]]; then
+    if [[ ! -f "$DATA_DIR/config/geoip.metadb" ]]; then
         github_proxy_select
         log "INFO" "Downloading geoip.metadb..."
         log_sublevel_start
         readonly MIHOMO_GEOIP_METADB_DOWNLOAD_URL="https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.metadb"
         log "INFO" "Download from: ${COLOR_UNDERLINE}$MIHOMO_GEOIP_METADB_DOWNLOAD_URL${COLOR_NORMAL}"
-        if ! download_with_cleanup "$FASTEST_GITHUB_PROXY$MIHOMO_GEOIP_METADB_DOWNLOAD_URL" "proxy-data/config/geoip.metadb"; then
+        if ! download_with_cleanup "$FASTEST_GITHUB_PROXY$MIHOMO_GEOIP_METADB_DOWNLOAD_URL" "$DATA_DIR/config/geoip.metadb"; then
             log "WARN" "Failed to download geoip.metadb"
         else
-            log "SUCCESS" "Downloaded to proxy-data/config/geoip.metadb"
+            log "SUCCESS" "Downloaded to $DATA_DIR/config/geoip.metadb"
         fi
         log_sublevel_end
     fi
@@ -496,7 +499,7 @@ mihomo_status() {
     log "INFO" "Mihomo status:"
     log_sublevel_start
 
-    if ! find_by_tag mihomo; then
+    if ! find_by_tag "$MIHOMO_TAG"; then
         log "WARN" "Cannot determine Mihomo status because process listing is not compatible on this system"
         log_sublevel_end
         return 1
@@ -604,7 +607,7 @@ find_unused_port() {
 
 usage() {
     cat >&2 <<EOF
-Usage: $0 [status | stop | tunnel <port> | help | -h | --help | <subscription_url>]
+Usage: $0 [-n | --name <name>] [status | stop | tunnel <port> | help | -h | --help | <subscription_url>]
 
 Subcommands:
   help, -h, --help     Show this help message
@@ -615,6 +618,9 @@ Subcommands:
 
 If no argument is provided, the script will download, start Mihomo and Metacubexd, and ask for tunneling.
 If subscription_url is provided, it will be downloaded to proxy-data/config/config.yaml.
+
+Options:
+  -n, --name <name>    Use a named instance. If provided, it stores data in proxy-data-<name>/.
 EOF
 }
 
@@ -692,8 +698,8 @@ download_subscription() {
     fi
 
     # Save to file only if download is successful
-    echo "$temp_config" > "proxy-data/config/config.yaml"
-    log "SUCCESS" "Downloaded to proxy-data/config/config.yaml"
+    echo "$temp_config" > "$DATA_DIR/config/config.yaml"
+    log "SUCCESS" "Downloaded to $DATA_DIR/config/config.yaml"
     
     log_sublevel_end
 }
@@ -714,8 +720,8 @@ read_config_from_stdin() {
     temp_config=$(cat)
     # Check if input is not empty (ignore whitespace-only content)
     if [[ -n "${temp_config// }" ]] && [[ -n "${temp_config//$'\n'}" ]]; then
-        echo "$temp_config" > "proxy-data/config/config.yaml"
-        log "SUCCESS" "Config saved to proxy-data/config/config.yaml"
+        echo "$temp_config" > "$DATA_DIR/config/config.yaml"
+        log "SUCCESS" "Config saved to $DATA_DIR/config/config.yaml"
         return 0
     else
         return 1
@@ -730,7 +736,7 @@ handle_subscription_config() {
         download_subscription "$subscription_url"
     else
         # No URL provided, check if we have a valid config file
-        if ! is_config_valid "proxy-data/config/config.yaml"; then
+        if ! is_config_valid "$DATA_DIR/config/config.yaml"; then
             # No valid config file, ask user
             read -p "[QUESTION] No valid config file found. Do you want to input config content manually? (y/n) " -n 1 -r input_choice
             echo
@@ -739,10 +745,10 @@ handle_subscription_config() {
                     log "WARN" "No valid content input, keeping existing config file unchanged"
                 fi
             else
-                log "WARN" "Skipping config input. You may need to put your subscription file at proxy-data/config/config.yaml and restart Mihomo."
+                log "WARN" "Skipping config input. You may need to put your subscription file at $DATA_DIR/config/config.yaml and restart Mihomo."
             fi
         else
-            log "INFO" "Valid config file already exists at proxy-data/config/config.yaml"
+            log "INFO" "Valid config file already exists at $DATA_DIR/config/config.yaml"
         fi
     fi
 }
@@ -781,7 +787,7 @@ parse_mixed_port() {
 write_out_env_setup_script() {
     local mixed_port="$1"
 
-    cat > "proxy-data/on" <<-EOF
+    cat > "$DATA_DIR/on" <<-EOF
 #!/bin/bash
 # Environment setup script for proxy.sh
 export http_proxy="http://127.0.0.1:$mixed_port"
@@ -794,15 +800,15 @@ export all_proxy=\$http_proxy
 export ALL_PROXY=\$http_proxy
 EOF
     
-    cat > "proxy-data/off" <<-EOF
+    cat > "$DATA_DIR/off" <<-EOF
 #!/bin/bash
 # Environment teardown script for proxy.sh
 unset http_proxy HTTP_PROXY https_proxy HTTPS_PROXY all_proxy ALL_PROXY
 EOF
 
-    chmod +x "proxy-data/on" "proxy-data/off"
-    log "SUCCESS" "${COLOR_BOLD}Environment setup script written to proxy-data/on and proxy-data/off${COLOR_NORMAL}"
-    log "INFO" "Note: You can ${COLOR_UNDERLINE}source proxy-data/on${COLOR_NORMAL} to set up the proxy environment, and ${COLOR_UNDERLINE}source proxy-data/off${COLOR_NORMAL} to unset it."
+    chmod +x "$DATA_DIR/on" "$DATA_DIR/off"
+    log "SUCCESS" "${COLOR_BOLD}Environment setup script written to $DATA_DIR/on and $DATA_DIR/off${COLOR_NORMAL}"
+    log "INFO" "Note: You can ${COLOR_UNDERLINE}source $DATA_DIR/on${COLOR_NORMAL} to set up the proxy environment, and ${COLOR_UNDERLINE}source $DATA_DIR/off${COLOR_NORMAL} to unset it."
 }
 
 main() {
@@ -812,8 +818,23 @@ main() {
         log "DEBUG" "Terminal does not support color"
     fi
 
+    if [[ "${1:-}" == "-n" || "${1:-}" == "--name" ]]; then
+        if [[ "$#" -lt 2 || -z "$2" ]]; then
+            log "ERROR" "Usage: $0 [-n | --name <name>]"
+            exit 1
+        fi
+        local instance_name="$2"
+        if [[ ! "$instance_name" =~ ^[A-Za-z0-9_.-]+$ ]]; then
+            log "ERROR" "Instance name may only contain letters, numbers, dots, underscores, and hyphens."
+            exit 1
+        fi
+        DATA_DIR="proxy-data-$instance_name"
+        MIHOMO_TAG="mihomo-$instance_name"
+        shift 2
+    fi
+
     if [[ "$EUID" -eq 0 ]]; then
-        if [[ ! -f "proxy-data/do_as_root" ]]; then
+        if [[ ! -f "$DATA_DIR/do_as_root" ]]; then
             log "WARN" "You are running this script as root. This is usually NOT recommended because of security and permission issues."
             log "WARN" "Please run this script as a normal user if possible."
             read -p "[QUESTION] Do you REALLY want to continue as root? (y/n) " -n 1 -r continue_choice
@@ -822,9 +843,9 @@ main() {
                 exit 0
             fi
             # Create the marker file to skip this warning in the future
-            mkdir -p "proxy-data"
-            echo > "proxy-data/do_as_root"
-            log "DEBUG" "Created proxy-data/do_as_root. This warning will not be shown again."
+            mkdir -p "$DATA_DIR"
+            echo > "$DATA_DIR/do_as_root"
+            log "DEBUG" "Created $DATA_DIR/do_as_root. This warning will not be shown again."
         fi
     fi
 
@@ -840,7 +861,7 @@ main() {
         exit 0
         ;;
     2)
-        kill_by_tag mihomo
+        kill_by_tag "$MIHOMO_TAG"
         exit 0
         ;;
     3)
@@ -855,7 +876,7 @@ main() {
     esac
 
     # no arguments or URL provided, start Mihomo
-    mkdir -p "proxy-data/"
+    mkdir -p "$DATA_DIR/"
 
     if mihomo_version_output=$(mihomo_exist); then
         log "INFO" "Mihomo already exists, skip downloading. Version: "
@@ -865,17 +886,17 @@ main() {
         download_mihomo
     fi
 
-    if [[ -d "proxy-data/metacubexd/" ]]; then
+    if [[ -d "$DATA_DIR/metacubexd/" ]]; then
         log "INFO" "metacubexd already exists, skip downloading."
     else
         github_proxy_select
         download_metacubexd
     fi
 
-    mkdir -p "proxy-data/config"
+    mkdir -p "$DATA_DIR/config"
     download_geodata_if_necessary
 
-    kill_by_tag mihomo
+    kill_by_tag "$MIHOMO_TAG"
     
     handle_subscription_config "$subscription_url"
     
@@ -885,23 +906,23 @@ main() {
         log "ERROR" "Failed to find an unused port"
         exit 1
     fi
-    daemon_run mihomo ./proxy-data/mihomo.log ./proxy-data/mihomo -d "proxy-data/config" -ext-ctl "0.0.0.0:$ext_port" -ext-ui "$(resolve_existing_dir "proxy-data/metacubexd")"
+    daemon_run "$MIHOMO_TAG" "$DATA_DIR/mihomo.log" "$DATA_DIR/mihomo" -d "$DATA_DIR/config" -ext-ctl "0.0.0.0:$ext_port" -ext-ui "$(resolve_existing_dir "$DATA_DIR/metacubexd")"
 
     log "SUCCESS" "${COLOR_BOLD}Mihomo started in the background!${COLOR_NORMAL}"
     log "INFO" "Note: You can access the web UI at ${COLOR_UNDERLINE}http://<server-ip>:$ext_port/ui${COLOR_NORMAL}. Use ${COLOR_UNDERLINE}http://<server-ip>:$ext_port/${COLOR_NORMAL} as the control server address in the WebUI."
     
-    if is_config_valid "proxy-data/config/config.yaml"; then
-        log "INFO" "Config file is ready at proxy-data/config/config.yaml"
+    if is_config_valid "$DATA_DIR/config/config.yaml"; then
+        log "INFO" "Config file is ready at $DATA_DIR/config/config.yaml"
     else
-        log "WARN" "Config file is not found or invalid. You may need to put your subscription file at proxy-data/config/config.yaml and restart Mihomo."
+        log "WARN" "Config file is not found or invalid. You may need to put your subscription file at $DATA_DIR/config/config.yaml and restart Mihomo."
     fi
 
     local mihomo_mixed_port=""
-    if mihomo_mixed_port=$(parse_mixed_port "proxy-data/config/config.yaml"); then
+    if mihomo_mixed_port=$(parse_mixed_port "$DATA_DIR/config/config.yaml"); then
         log "INFO" "Mihomo mixed-port is set to: $mihomo_mixed_port"
         write_out_env_setup_script "$mihomo_mixed_port"
     else
-        log "WARN" "Mihomo mixed-port is not set in the config file. You may need to set it manually in proxy-data/config/config.yaml and restart Mihomo."
+        log "WARN" "Mihomo mixed-port is not set in the config file. You may need to set it manually in $DATA_DIR/config/config.yaml and restart Mihomo."
         log "WARN" "    The environment setup script is not written because mixed-port is unknown."
     fi
     
